@@ -15,11 +15,11 @@ This will list all the files targeted for deletion along with a count of the num
 |Short Form|Long Form|Description|
 |:----|:---|:----------|
 `-d`|`--debug`|Output debug information as we go. Supply it twice for trace-level logs.
-`-o`|`--detail-off`|Don't export detailed information about each file processed.
-`-r`|`--dry-run`|Iterate through the files and produce output without actually deleting anything.
 `-h`|`--help`|Prints help information
+`-o`|`--detail-off`|Don't export detailed information about each file processed.
 `-p`|`--print-summary`|Print summary detail.
 `-q`|`--quiet`|Don't produce any output except errors while working.
+`-r`|`--dry-run`|Iterate through the files and produce output without actually deleting anything.
 `-V`|`--version`|Prints version information
 
 ### Arguments

@@ -30,7 +30,7 @@ fn run() -> Result<(), Box<dyn Error>> {
                 .takes_value(false)
                 .hidden(false),
         )
-        .arg( // Don't print any information
+        .arg( // Dry-run
             Arg::with_name("dry-run")
                 .short("r")
                 .long("dry-run")
@@ -109,6 +109,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
         if dry_run || show_detail_info {
             log::info!("Deleting: {}", &filename);
+            processed_file_count += 1;
         }
         if !dry_run {
             match std::fs::remove_file(&filename) {
