@@ -5,7 +5,7 @@
 # https://github.com/casey/just
 
 # VARIABLES
-application := "gather"
+application := "rdel"
 
 # ALIASES
 alias b := build
@@ -53,7 +53,6 @@ alias fmt := format
     cargo lbuild --release  --color 'always'
     cargo strip
     cp {{invocation_directory()}}/target/release/{{application}} /usr/local/bin/
-    cargo clean
 
 # Build the documentation
 @doc:
@@ -142,7 +141,7 @@ alias fmt := format
 # Copy this settings files to the templates directory
 @just:
     cp {{invocation_directory()}}/justfile ~/CloudStation/Source/_Templates/justfile.template
-    -sd {{application}} gather ~/CloudStation/Source/_Templates/justfile.template
+    -sd {{application}} myapplication ~/CloudStation/Source/_Templates/justfile.template
     cp {{invocation_directory()}}/deny.toml ~/CloudStation/Source/_Templates/deny.toml
 
 # Check, but verbose

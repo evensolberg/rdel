@@ -1,5 +1,4 @@
 use clap::{App, Arg}; // Command line
-use glob::glob;
 use std::error::Error;
 
 // Logging
@@ -18,7 +17,7 @@ fn run() -> Result<(), Box<dyn Error>> {
         .arg(
             Arg::with_name("files")
                 .value_name("FILE(S)")
-                .help("One or more file(s) to process. Wildcards and multiple files (e.g. 2019*.pdf 2020*.pdf) are supported.")
+                .help("One or more file(s) to process. Wildcards and multiple files (e.g. 2019*.pdf 2020*.pdf) are supported. Note: Case sensitive.")
                 .takes_value(true)
                 .multiple(true),
         )
@@ -29,7 +28,7 @@ fn run() -> Result<(), Box<dyn Error>> {
                 .multiple(true)
                 .help("Output debug information as we go. Supply it twice for trace-level logs.")
                 .takes_value(false)
-                .hidden(true),
+                .hidden(false),
         )
         .arg( // Don't print any information
             Arg::with_name("dry-run")
@@ -83,10 +82,13 @@ fn run() -> Result<(), Box<dyn Error>> {
     logbuilder.target(Target::Stdout).init();
 
     // create a list of the files to delete
-    let files_to_delete = cli_args.values_of("read").unwrap();
-    log::debug!("files_to_delete: {:?}", files_to_delete);
+    let files_to_delete = cli_args.values_of("files").unwrap();
+    log::debug!("files_to_delete: {:?}", &files_to_delete);
 
     let dry_run = cli_args.is_present("dry-run");
+    if dry_run {
+        log::info!("Dry-run starting.");
+    }
     let stop_on_error = cli_args.is_present("stop");
     if stop_on_error {
         log::debug!("Stop on error flag set. Will stop if errors occur.");
@@ -101,45 +103,36 @@ fn run() -> Result<(), Box<dyn Error>> {
     let mut skipped_file_count: usize = 0;
 
     // Delete files
-    for filename in files_to_delete {
-        for entry in glob(filename).unwrap() {
-            if let Ok(path) = entry {
-                total_file_count += 1;
 
-                if dry_run || show_detail_info {
-                    log::info!("Deleting file {}", &path.to_str().unwrap());
+    for filename in files_to_delete {
+        total_file_count += 1;
+
+        if dry_run || show_detail_info {
+            log::info!("Deleting: {}", &filename);
+        }
+        if !dry_run {
+            match std::fs::remove_file(&filename) {
+                Ok(_) => {
+                    processed_file_count += 1;
                 }
-                if !dry_run {
-                    match std::fs::remove_file(&path) {
-                        Ok(_) => {
-                            processed_file_count += 1;
-                        }
-                        Err(err) => {
-                            if stop_on_error {
-                                return Err(format!(
-                                    "Error: {}. Unable to remove file {}. Halting.",
-                                    err,
-                                    path.to_str().unwrap(),
-                                )
-                                .into());
-                            } else {
-                                log::warn!(
-                                    "Unable to remove file {}. Continuing.",
-                                    path.to_str().unwrap(),
-                                );
-                                skipped_file_count += 1;
-                            } // if stop_on_error
-                        } // Err
-                    } // match
-                } // if !dry_run
-            } else {
-                log::error!("Unable to process {}", &entry?.to_str().unwrap());
-            }
-        } // for entry
+                Err(err) => {
+                    if stop_on_error {
+                        return Err(format!(
+                            "Error: {}. Unable to remove file {}. Halting.",
+                            err, &filename,
+                        )
+                        .into());
+                    } else {
+                        log::warn!("Unable to remove file {}. Continuing.", &filename,);
+                        skipped_file_count += 1;
+                    } // if stop_on_error
+                } // Err
+            } // match
+        } // if !dry_run
     } // for filename
 
     // Print summary information
-    if cli_args.is_present("summary") {
+    if cli_args.is_present("print-summary") {
         log::info!("Total files examined:        {:5}", total_file_count);
         log::info!("Files removed:               {:5}", processed_file_count);
         log::info!("Files skipped due to errors: {:5}", skipped_file_count);
