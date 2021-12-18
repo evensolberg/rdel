@@ -10,6 +10,7 @@ application := "rdel"
 # ALIASES
 alias b := build
 alias br := buildr
+alias bra := buildra
 alias fmt := format
 
 # SHORTCUTS AND COMMANDS
@@ -29,6 +30,11 @@ alias fmt := format
 @buildr: format changelog
     cargo lbuild --release --color 'always'
     cargo strip
+
+# Compile a release version of the project for Apple ARM64 without moving the binaries
+@buildra: format changelog
+    cargo lbuild --release --color 'always' --target aarch64-apple-darwin
+    cargo strip --target aarch64-apple-darwin
 
 # Cleans and builds again
 @rebuild: format changelog
@@ -53,6 +59,14 @@ alias fmt := format
     cargo lbuild --release  --color 'always'
     cargo strip
     cp {{invocation_directory()}}/target/release/{{application}} /usr/local/bin/
+    cargo clean
+
+# Documents the project, builds and installs the release version, and cleans up
+@releasea: format changelog
+    cargo lbuild --release  --color 'always' --target aarch64-apple-darwin
+    cargo strip --target aarch64-apple-darwin
+    cp {{invocation_directory()}}/target/aarch64-apple-darwin/release/{{application}} /usr/local/bin/
+    cargo clean
 
 # Build the documentation
 @doc:
@@ -141,7 +155,7 @@ alias fmt := format
 # Copy this settings files to the templates directory
 @just:
     cp {{invocation_directory()}}/justfile ~/CloudStation/Source/_Templates/justfile.template
-    -sd {{application}} myapplication ~/CloudStation/Source/_Templates/justfile.template
+    -sd {{application}} rdel ~/CloudStation/Source/_Templates/justfile.template
     cp {{invocation_directory()}}/deny.toml ~/CloudStation/Source/_Templates/deny.toml
 
 # Check, but verbose
