@@ -15,50 +15,50 @@ fn run() -> Result<(), Box<dyn Error>> {
         .author(clap::crate_authors!("\n"))
         .long_about("Recursively delete files.")
         .arg(
-            Arg::with_name("files")
+            Arg::new("files")
                 .value_name("FILE(S)")
-                .help("One or more file(s) to process. Wildcards and multiple files (e.g. 2019*.pdf 2020*.pdf) are supported. Use the ** glob to recurse (eg. **/*.log). Note: Case sensitive.")
+                .help("One or more file(s) to process. Wildcards and multiple_occurrences files (e.g. 2019*.pdf 2020*.pdf) are supported. Use the ** glob to recurse (eg. **/*.log). Note: Case sensitive.")
                 .takes_value(true)
-                .multiple(true),
+                .multiple_occurrences(true),
         )
         .arg( // Hidden debug parameter
-            Arg::with_name("debug")
-                .short("d")
+            Arg::new("debug")
+                .short('d')
                 .long("debug")
-                .multiple(true)
+                .multiple_occurrences(true)
                 .help("Output debug information as we go. Supply it twice for trace-level logs.")
                 .takes_value(false)
-                .hidden(false),
+                .hide(false),
         )
         .arg( // Dry-run
-            Arg::with_name("dry-run")
-                .short("r")
+            Arg::new("dry-run")
+                .short('r')
                 .long("dry-run")
-                .multiple(false)
+                .multiple_occurrences(false)
                 .help("Iterate through the files and produce output without actually deleting anything.")
                 .takes_value(false)
         )
         .arg( // Don't print any information
-            Arg::with_name("quiet")
-                .short("q")
+            Arg::new("quiet")
+                .short('q')
                 .long("quiet")
-                .multiple(false)
+                .multiple_occurrences(false)
                 .help("Don't produce any output except errors while working.")
                 .takes_value(false)
         )
         .arg( // Print summary information
-            Arg::with_name("print-summary")
-                .short("p")
+            Arg::new("print-summary")
+                .short('p')
                 .long("print-summary")
-                .multiple(false)
+                .multiple_occurrences(false)
                 .help("Print summary detail.")
                 .takes_value(false)
         )
         .arg( // Don't export detail information
-            Arg::with_name("detail-off")
-                .short("o")
+            Arg::new("detail-off")
+                .short('o')
                 .long("detail-off")
-                .multiple(false)
+                .multiple_occurrences(false)
                 .help("Don't export detailed information about each file processed.")
                 .takes_value(false)
         )
@@ -82,8 +82,9 @@ fn run() -> Result<(), Box<dyn Error>> {
     logbuilder.target(Target::Stdout).init();
 
     // create a list of the files to delete
-    let files_to_delete = cli_args.values_of("files").unwrap();
-    log::debug!("files_to_delete: {:?}", &files_to_delete);
+    for files_to_delete in cli_args.values_of("files").unwrap() {
+        log::trace!("files_to_delete: {:?}", &files_to_delete);
+    }
 
     let dry_run = cli_args.is_present("dry-run");
     if dry_run {
@@ -104,7 +105,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     // Delete files
 
-    for filename in files_to_delete {
+    for filename in cli_args.values_of("files").unwrap() {
         total_file_count += 1;
 
         if dry_run || show_detail_info {
