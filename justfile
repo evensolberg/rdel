@@ -12,6 +12,7 @@ alias b := build
 alias br := buildr
 alias bra := buildra
 alias fmt := format
+alias r := release
 
 # SHORTCUTS AND COMMANDS
 
@@ -43,7 +44,7 @@ alias fmt := format
 
 # Updates the CHANGELOG.md file
 @changelog:
-   git-chglog --silent --output {{invocation_directory()}}/CHANGELOG.md
+   git-cliff --output {{invocation_directory()}}/CHANGELOG.md
 
 # Cleans up the project directory
 @clean:
@@ -53,6 +54,9 @@ alias fmt := format
     -rm debug.txt > /dev/null 2>&1
     -rm trace.txt > /dev/null 2>&1
     -rm bom.txt > /dev/null 2>&1
+
+# Rebuilds the changelog
+@cliff: changelog
 
 # Documents the project, builds and installs the release version, and cleans up
 @release: format changelog
@@ -113,11 +117,34 @@ alias fmt := format
 @init:
     cp ~/CloudStation/Source/_Templates/deny.toml {{invocation_directory()}}/deny.toml
     cp ~/CloudStation/Source/_Templates/main_template.rs {{invocation_directory()}}/src/main.rs
-    cargo add clap
+    cp ~/CloudStation/Source/_Templates/cliff.toml {{invocation_directory()}}/cliff.toml
+    cargo add clap --features cargo color
     cargo add log
     cargo add env_logger
-    git-chglog --init
-    git tag Initialt
+    echo "# {{application}}\n\n" > README.md
+    git mit-install
+    git mit-config lint enable subject-line-not-capitalized
+    git mit-config lint enable subject-line-ends-with-period
+    git mit-config lint enable not-conventional-commit
+    git mit-config lint enable not-emoji-log
+    git mit-config mit set es "Even Solberg" even.solberg@gmail.com
+    git mit es
+    git remote add {{application}} https://github.com/evensolberg/{{application}}
+    git commit -m doc:Initial
+    git tag Initial
+    git cliff --init
+
+# Re-initialize the directory for various services -- stripped down version of init
+
+@my_application:
+    git mit-install
+    git mit-config lint enable subject-line-not-capitalized
+    git mit-config lint enable subject-line-ends-with-period
+    git mit-config lint enable not-conventional-commit
+    git mit-config lint enable not-emoji-log
+    git mit-config mit set es "Even Solberg" even.solberg@gmail.com
+    git mit es
+    git cliff --init
 
 # Read the documentation
 @read:
@@ -154,9 +181,9 @@ alias fmt := format
 
 # Copy this settings files to the templates directory
 @just:
-    cp {{invocation_directory()}}/justfile ~/CloudStation/Source/_Templates/justfile.template
-    -sd {{application}} rdel ~/CloudStation/Source/_Templates/justfile.template
-    cp {{invocation_directory()}}/deny.toml ~/CloudStation/Source/_Templates/deny.toml
+    -sed "s#{{application}}#my_application#" justfile > ~/CloudStation/Source/_Templates/justfile.template
+    -cp {{invocation_directory()}}/deny.toml ~/CloudStation/Source/_Templates/deny.toml
+    -cp {{invocation_directory()}}/cliff.toml ~/CloudStation/Source/_Templates/cliff.toml
 
 # Check, but verbose
 @checkv:
@@ -176,5 +203,6 @@ alias fmt := format
     -cargo install cargo-semver --vers 1.0.0-alpha.3
     -cargo install cargo-deny
     -brew tap git-chglog/git-chglog && brew install git-chglog
+    -brew install PurpleBooth/repo/git-mit &&
     -cp ~/CloudStation/Source/_Templates/deny.toml {{invocation_directory()}}/deny.toml
     echo "Make sure to also install Graphviz."
