@@ -1,6 +1,12 @@
 # Changelog
 All notable changes to this project will be documented in this file.
 
+## [unreleased]
+
+### Features
+
+- Count number of bytes freed
+
 ## [0.2.0] - 2022-02-12
 
 ### Miscellaneous Tasks
