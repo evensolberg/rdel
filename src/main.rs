@@ -1,5 +1,6 @@
 use clap::{App, Arg}; // Command line
-use std::error::Error;
+use std::fs;
+use std::{error::Error, path::Path};
 
 // Logging
 use env_logger::{Builder, Target};
@@ -36,6 +37,14 @@ fn run() -> Result<(), Box<dyn Error>> {
                 .long("dry-run")
                 .multiple_occurrences(false)
                 .help("Iterate through the files and produce output without actually deleting anything.")
+                .takes_value(false)
+        )
+        .arg( // Stop on error
+            Arg::new("stop")
+                .short('s')
+                .long("stop-on-error")
+                .multiple_occurrences(false)
+                .help("If set, the program will stop if it encounters an error. If not, the program will attempt to continue if errors occur.")
                 .takes_value(false)
         )
         .arg( // Don't print any information
@@ -102,16 +111,22 @@ fn run() -> Result<(), Box<dyn Error>> {
     let mut total_file_count: usize = 0;
     let mut processed_file_count: usize = 0;
     let mut skipped_file_count: usize = 0;
+    let mut total_file_size: u64 = 0;
 
     // Delete files
 
     for filename in cli_args.values_of("files").unwrap() {
         total_file_count += 1;
 
+        let current_file_size = fs::metadata(Path::new(&filename))?.len();
+
+        total_file_size += current_file_size;
+
         if dry_run || show_detail_info {
-            log::info!("Deleting: {}", &filename);
+            log::info!("Deleting: {} for {} bytes.", &filename, current_file_size);
             processed_file_count += 1;
         }
+
         if !dry_run {
             match std::fs::remove_file(&filename) {
                 Ok(_) => {
@@ -138,6 +153,10 @@ fn run() -> Result<(), Box<dyn Error>> {
         log::info!("Total files examined:        {:5}", total_file_count);
         log::info!("Files removed:               {:5}", processed_file_count);
         log::info!("Files skipped due to errors: {:5}", skipped_file_count);
+        log::info!(
+            "Bytes freed:                 {:>}",
+            thousand_separated(total_file_size)
+        );
     }
 
     // Everything is a-okay in the end
@@ -154,4 +173,22 @@ fn main() {
             1 // exit with a non-zero return code, indicating a problem
         }
     });
+}
+
+/// Pretty-prints `usize` values;
+/// Examples:
+///
+/// ```
+/// assert_eq!(thousand_separated(10000), "10,000".to_string());
+/// assert_eq!(thousand_separated(10000000), "10,000,000".to_string());
+/// ```
+pub fn thousand_separated(val: u64) -> String {
+    let s = val.to_string();
+    let bytes: Vec<_> = s.bytes().rev().collect();
+    let chunks: Vec<_> = bytes
+        .chunks(3)
+        .map(|chunk| std::str::from_utf8(chunk).unwrap())
+        .collect();
+    let result: Vec<_> = chunks.join(",").bytes().rev().collect();
+    String::from_utf8(result).unwrap()
 }
