@@ -122,7 +122,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
         total_file_size += current_file_size;
 
-        if dry_run || show_detail_info {
+        if show_detail_info {
             log::info!("Deleting: {} for {} bytes.", &filename, current_file_size);
         }
 
@@ -144,8 +144,10 @@ fn run() -> Result<(), Box<dyn Error>> {
                     skipped_file_count += 1;
                 } // Err
             } // match
-        } // if !dry_run
-        processed_file_count += 1;
+        } else {
+            // if !dry_run
+            processed_file_count += 1;
+        }
     } // for filename
 
     // Print summary information
@@ -169,7 +171,7 @@ fn main() {
     std::process::exit(match run() {
         Ok(_) => 0, // everying is hunky dory - exit with code 0 (success)
         Err(err) => {
-            log::error!("{}", err.to_string().replace("\"", ""));
+            log::error!("{}", err.to_string().replace('\"', ""));
             1 // exit with a non-zero return code, indicating a problem
         }
     });
