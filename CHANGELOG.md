@@ -7,6 +7,10 @@ All notable changes to this project will be documented in this file.
 
 - Count number of bytes freed
 
+### Miscellaneous Tasks
+
+- Changelog update
+
 ## [0.2.0] - 2022-02-12
 
 ### Miscellaneous Tasks

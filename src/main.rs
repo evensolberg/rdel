@@ -124,7 +124,6 @@ fn run() -> Result<(), Box<dyn Error>> {
 
         if dry_run || show_detail_info {
             log::info!("Deleting: {} for {} bytes.", &filename, current_file_size);
-            processed_file_count += 1;
         }
 
         if !dry_run {
@@ -141,11 +140,12 @@ fn run() -> Result<(), Box<dyn Error>> {
                         .into());
                     } else {
                         log::warn!("Unable to remove file {}. Continuing.", &filename,);
-                        skipped_file_count += 1;
                     } // if stop_on_error
+                    skipped_file_count += 1;
                 } // Err
             } // match
         } // if !dry_run
+        processed_file_count += 1;
     } // for filename
 
     // Print summary information
@@ -175,14 +175,17 @@ fn main() {
     });
 }
 
-/// Pretty-prints `usize` values;
+/// Pretty-prints integer values;
 /// Examples:
 ///
 /// ```
 /// assert_eq!(thousand_separated(10000), "10,000".to_string());
 /// assert_eq!(thousand_separated(10000000), "10,000,000".to_string());
 /// ```
-pub fn thousand_separated(val: u64) -> String {
+pub fn thousand_separated<T>(val: T) -> String
+where
+    T: std::fmt::Display,
+{
     let s = val.to_string();
     let bytes: Vec<_> = s.bytes().rev().collect();
     let chunks: Vec<_> = bytes
