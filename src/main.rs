@@ -1,112 +1,35 @@
-use clap::{App, Arg}; // Command line
+use clap::parser::ValueSource;
 use std::fs;
 use std::{error::Error, path::Path};
 
-// Logging
-use env_logger::{Builder, Target};
-use log::LevelFilter;
+mod cli;
+mod utils;
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /// This is where the magic happens.
 fn run() -> Result<(), Box<dyn Error>> {
     // Set up the command line. Ref https://docs.rs/clap for details.
-    let cli_args = App::new(clap::crate_name!())
-        .about(clap::crate_description!())
-        .version(clap::crate_version!())
-        .author(clap::crate_authors!("\n"))
-        .long_about("Recursively delete files.")
-        .arg(
-            Arg::new("files")
-                .value_name("FILE(S)")
-                .help("One or more file(s) to process. Wildcards and multiple_occurrences files (e.g. 2019*.pdf 2020*.pdf) are supported. Use the ** glob to recurse (eg. **/*.log). Note: Case sensitive.")
-                .takes_value(true)
-                .multiple_occurrences(true),
-        )
-        .arg( // Hidden debug parameter
-            Arg::new("debug")
-                .short('d')
-                .long("debug")
-                .multiple_occurrences(true)
-                .help("Output debug information as we go. Supply it twice for trace-level logs.")
-                .takes_value(false)
-                .hide(false),
-        )
-        .arg( // Dry-run
-            Arg::new("dry-run")
-                .short('r')
-                .long("dry-run")
-                .multiple_occurrences(false)
-                .help("Iterate through the files and produce output without actually deleting anything.")
-                .takes_value(false)
-        )
-        .arg( // Stop on error
-            Arg::new("stop")
-                .short('s')
-                .long("stop-on-error")
-                .multiple_occurrences(false)
-                .help("If set, the program will stop if it encounters an error. If not, the program will attempt to continue if errors occur.")
-                .takes_value(false)
-        )
-        .arg( // Don't print any information
-            Arg::new("quiet")
-                .short('q')
-                .long("quiet")
-                .multiple_occurrences(false)
-                .help("Don't produce any output except errors while working.")
-                .takes_value(false)
-        )
-        .arg( // Print summary information
-            Arg::new("print-summary")
-                .short('p')
-                .long("print-summary")
-                .multiple_occurrences(false)
-                .help("Print summary detail.")
-                .takes_value(false)
-        )
-        .arg( // Don't export detail information
-            Arg::new("detail-off")
-                .short('o')
-                .long("detail-off")
-                .multiple_occurrences(false)
-                .help("Don't export detailed information about each file processed.")
-                .takes_value(false)
-        )
-        .get_matches();
+    let cli_args = cli::build();
 
-    // create a log builder
-    let mut logbuilder = Builder::new();
+    // Set up logging
+    let _logbuilder = utils::log_build(&cli_args);
 
-    // Figure out what log level to use.
-    if cli_args.is_present("quiet") {
-        logbuilder.filter_level(LevelFilter::Off);
-    } else {
-        match cli_args.occurrences_of("debug") {
-            0 => logbuilder.filter_level(LevelFilter::Info),
-            1 => logbuilder.filter_level(LevelFilter::Debug),
-            _ => logbuilder.filter_level(LevelFilter::Trace),
-        };
-    }
+    let files_to_delete = cli_args
+        .get_many::<String>("files")
+        .unwrap_or_default()
+        .map(std::string::String::as_str);
+    log::trace!("files_to_delete: {files_to_delete:?}");
 
-    // Initialize logging
-    logbuilder.target(Target::Stdout).init();
+    let move_files = cli_args.value_source("move") == Some(ValueSource::CommandLine);
+    let stop_on_error = cli_args.value_source("stop") == Some(ValueSource::CommandLine);
+    let show_detail_info = cli_args.value_source("detail-off") != Some(ValueSource::CommandLine);
+    let dry_run = cli_args.value_source("dry-run") == Some(ValueSource::CommandLine);
+    let print_summary = cli_args.value_source("print-summary") == Some(ValueSource::CommandLine);
+    log::debug!("move_files: {move_files}, stop_on_error: {stop_on_error}, show_detail_info: {show_detail_info}, dry_run: {dry_run}, print-summary: {print_summary}");
 
-    // create a list of the files to delete
-    for files_to_delete in cli_args.values_of("files").unwrap() {
-        log::trace!("files_to_delete: {:?}", &files_to_delete);
-    }
-
-    let dry_run = cli_args.is_present("dry-run");
     if dry_run {
         log::info!("Dry-run starting.");
     }
-    let stop_on_error = cli_args.is_present("stop");
-    if stop_on_error {
-        log::debug!("Stop on error flag set. Will stop if errors occur.");
-    } else {
-        log::debug!("Stop on error flag not set. Will attempt to continue in case of errors.");
-    }
-
-    let show_detail_info = !cli_args.is_present("detail-off");
 
     let mut total_file_count: usize = 0;
     let mut processed_file_count: usize = 0;
@@ -115,7 +38,7 @@ fn run() -> Result<(), Box<dyn Error>> {
 
     // Delete files
 
-    for filename in cli_args.values_of("files").unwrap() {
+    for filename in files_to_delete {
         total_file_count += 1;
 
         let current_file_size = fs::metadata(Path::new(&filename))?.len();
@@ -123,38 +46,35 @@ fn run() -> Result<(), Box<dyn Error>> {
         total_file_size += current_file_size;
 
         if show_detail_info {
-            log::info!("Deleting: {} for {} bytes.", &filename, current_file_size);
+            log::info!("Deleting: {filename} for {current_file_size} bytes.");
         }
 
-        if !dry_run {
-            match std::fs::remove_file(&filename) {
+        if dry_run {
+            processed_file_count += 1;
+        } else {
+            match std::fs::remove_file(filename) {
                 Ok(_) => {
                     processed_file_count += 1;
                 }
                 Err(err) => {
                     if stop_on_error {
                         return Err(format!(
-                            "Error: {}. Unable to remove file {}. Halting.",
-                            err, &filename,
+                            "Error: {err}. Unable to remove file {filename}. Halting.",
                         )
                         .into());
-                    } else {
-                        log::warn!("Unable to remove file {}. Continuing.", &filename,);
-                    } // if stop_on_error
+                    }
+                    log::warn!("Unable to remove file {filename}. Continuing.");
                     skipped_file_count += 1;
                 } // Err
             } // match
-        } else {
-            // if !dry_run
-            processed_file_count += 1;
         }
     } // for filename
 
     // Print summary information
-    if cli_args.is_present("print-summary") {
-        log::info!("Total files examined:        {:5}", total_file_count);
-        log::info!("Files removed:               {:5}", processed_file_count);
-        log::info!("Files skipped due to errors: {:5}", skipped_file_count);
+    if print_summary {
+        log::info!("Total files examined:        {total_file_count:5}");
+        log::info!("Files removed:               {processed_file_count:5}");
+        log::info!("Files skipped due to errors: {skipped_file_count:5}");
         log::info!(
             "Bytes freed:                 {:>}",
             thousand_separated(total_file_size)
@@ -192,8 +112,9 @@ where
     let bytes: Vec<_> = s.bytes().rev().collect();
     let chunks: Vec<_> = bytes
         .chunks(3)
-        .map(|chunk| std::str::from_utf8(chunk).unwrap())
+        .map(|chunk| std::str::from_utf8(chunk).unwrap_or("0"))
         .collect();
     let result: Vec<_> = chunks.join(",").bytes().rev().collect();
-    String::from_utf8(result).unwrap()
+    let default = String::from("NaN");
+    String::from_utf8(result).unwrap_or(default)
 }

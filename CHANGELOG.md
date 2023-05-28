@@ -3,6 +3,12 @@ All notable changes to this project will be documented in this file.
 
 ## [unreleased]
 
+### Bug Fixes
+
+- Counting bug
+
+## [0.2.2] - 2022-03-20
+
 ### Miscellaneous Tasks
 
 - Changelog update
